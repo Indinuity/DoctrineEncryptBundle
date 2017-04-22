@@ -7,9 +7,9 @@ namespace Ambta\DoctrineEncryptBundle\Encryptors;
  *
  * @author Victor Melnik <melnikvictorl@gmail.com>
  */
-class AES256Encryptor implements EncryptorInterface
+class AES192Encryptor implements EncryptorInterface
 {
-    const METHOD_NAME = 'AES-256';
+    const METHOD_NAME = 'AES-192';
     const ENCRYPT_MODE = 'ECB';
 
     /**

@@ -3,13 +3,11 @@
 namespace Ambta\DoctrineEncryptBundle\Encryptors;
 
 /**
- * Class for AES256 encryption.
- *
- * @author Victor Melnik <melnikvictorl@gmail.com>
+ * Class for AES128 encryption.
  */
-class AES256Encryptor implements EncryptorInterface
+class AES128Encryptor implements EncryptorInterface
 {
-    const METHOD_NAME = 'AES-256';
+    const ENCRYPT_NAME = 'AES-128';
     const ENCRYPT_MODE = 'ECB';
 
     /**
@@ -33,7 +31,7 @@ class AES256Encryptor implements EncryptorInterface
     public function __construct($key)
     {
         $this->secretKey = md5($key);
-        $this->encryptMethod = sprintf('%s-%s', self::METHOD_NAME, self::ENCRYPT_MODE);
+        $this->encryptMethod = sprintf('%s-%s', self::ENCRYPT_NAME, self::ENCRYPT_MODE);
         $this->initializationVector = openssl_random_pseudo_bytes(
             openssl_cipher_iv_length($this->encryptMethod)
         );

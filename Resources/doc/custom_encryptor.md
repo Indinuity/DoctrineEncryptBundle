@@ -23,11 +23,12 @@ namespace YourBundle\Library\Encryptor;
 use Ambta\DoctrineEncryptBundle\Encryptors\EncryptorInterface;
 
 /**
- * Class for variable encryption
- * 
- * @author you <you@youremail.com>
+ * Class for AES128 encryption.
  */
-class MyRijndael192Encryptor implements EncryptorInterface {
+class MyAES128Encryptor implements EncryptorInterface
+{
+    const ENCRYPT_NAME = 'AES-128';
+    const ENCRYPT_MODE = 'ECB';
 
     /**
      * @var string
@@ -37,49 +38,56 @@ class MyRijndael192Encryptor implements EncryptorInterface {
     /**
      * @var string
      */
+    private $encryptMethod;
+
+    /**
+     * @var string
+     */
     private $initializationVector;
 
     /**
      * {@inheritdoc}
      */
-    public function __construct($key) {
+    public function __construct($key)
+    {
         $this->secretKey = md5($key);
-        $this->initializationVector = mcrypt_create_iv(
-            mcrypt_get_iv_size(MCRYPT_RIJNDAEL_192, MCRYPT_MODE_ECB),
-            MCRYPT_RAND
+        $this->encryptMethod = sprintf('%s-%s', self::ENCRYPT_NAME, self::ENCRYPT_MODE);
+        $this->initializationVector = openssl_random_pseudo_bytes(
+            openssl_cipher_iv_length($this->encryptMethod)
         );
     }
 
     /**
      * {@inheritdoc}
      */
-    public function encrypt($data) {
-
-        if(is_string($data)) {
-            return trim(base64_encode(mcrypt_encrypt(
-                MCRYPT_RIJNDAEL_192,
-                $this->secretKey,
+    public function encrypt($data)
+    {
+        if (is_string($data)) {
+            return trim(base64_encode(openssl_encrypt(
                 $data,
-                MCRYPT_MODE_ECB,
+                $this->encryptMethod,
+                $this->secretKey,
+                0,
                 $this->initializationVector
-            ))). "<ENC>";
+            ))).'<ENC>';
         }
 
         return $data;
-
     }
 
     /**
      * {@inheritdoc}
      */
-    public function decrypt($data) {
+    public function decrypt($data)
+    {
+        if (is_string($data)) {
+            $data = str_replace('<ENC>', '', $data);
 
-        if(is_string($data)) {
-            return trim(mcrypt_decrypt(
-                MCRYPT_RIJNDAEL_192,
-                $this->secretKey,
+            return trim(openssl_decrypt(
                 base64_decode($data),
-                MCRYPT_MODE_ECB,
+                $this->encryptMethod,
+                $this->secretKey,
+                0,
                 $this->initializationVector
             ));
         }

@@ -149,4 +149,4 @@ So our information is encoded and all okay.
 
 ###Requirements
 
-You need `DoctrineFixturesBundle` and `php-mcrypt` extension for this example
+You need `DoctrineFixturesBundle` and `php-openssl` extension for this example

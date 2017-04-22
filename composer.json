@@ -5,10 +5,10 @@
     "license": "MIT",
     "description": "Symfony 2 bundle which allows to encrypt data in database with some encrypt algorithm",
     "require": {
-        "php": ">=5.4",
+        "php": ">=5.6",
         "symfony/framework-bundle": ">=2.5",
         "doctrine/orm": ">=2.5",
-        "ext-mcrypt": "*"
+        "ext-openssl": "*"
     },
     "autoload": {
         "psr-0": { "Ambta\\DoctrineEncryptBundle": "" }
