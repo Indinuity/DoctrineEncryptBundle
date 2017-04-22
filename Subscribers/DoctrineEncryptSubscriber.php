@@ -197,11 +197,11 @@ class DoctrineEncryptSubscriber implements EventSubscriber {
      */
     public function getSubscribedEvents() {
         return array(
-            Events::postUpdate,
+            // Events::postUpdate,
             Events::preUpdate,
             Events::postLoad,
             Events::preFlush,
-            Events::postFlush
+            // Events::postFlush
         );
     }
 
@@ -253,7 +253,8 @@ class DoctrineEncryptSubscriber implements EventSubscriber {
                             if(substr($value, -5) == "<ENC>") {
                                 $this->decryptCounter++;
                                 $currentPropValue = $this->encryptor->decrypt(substr($value, 0, -5));
-                                $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
+                                $pac->setValue($entity, $refProperty->getName(), $value);
+                                $pac->setValue($entity, $refProperty->getName().'Decrypted', $currentPropValue);
                             }
                         }
                     } else {
@@ -262,6 +263,7 @@ class DoctrineEncryptSubscriber implements EventSubscriber {
                                 $this->encryptCounter++;
                                 $currentPropValue = $this->encryptor->encrypt($value);
                                 $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
+                                $pac->setValue($entity, $refProperty->getName().'Decrypted', $value);
                             }
                         }
                     }
