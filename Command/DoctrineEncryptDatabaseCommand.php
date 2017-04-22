@@ -54,7 +54,7 @@ class DoctrineEncryptDatabaseCommand extends AbstractCommand
                 } else {
                     $output->writeln('\nGiven encryptor does not exists');
                     $output->writeln('Supported encryptors: ' . implode(', ', array_keys($supportedExtensions)));
-                    $output->writeln('You can also define your own class. (example: Ambta\DoctrineEncryptBundle\Encryptors\Rijndael128Encryptor)');
+                    $output->writeln('You can also define your own class. (example: \Ambta\DoctrineEncryptBundle\Encryptors\AES256Encryptor)');
                     return;
                 }
             }

@@ -7,7 +7,7 @@
 ### Requirements
 
 * php 5.4 
-* php-mcrypt
+* php-openssl
 * [doctrine/orm](https://packagist.org/packages/doctrine/orm) >= 2.5
 * [symfony/framework-bundle](https://packagist.org/packages/symfony/framework-bundle) >= 2.0
 
