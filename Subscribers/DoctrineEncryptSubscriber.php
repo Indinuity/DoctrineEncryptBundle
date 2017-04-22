@@ -12,6 +12,7 @@ use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\ClassUtils;
 use \ReflectionClass;
 use Ambta\DoctrineEncryptBundle\Encryptors\EncryptorInterface;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 
 /**
  * Doctrine event subscriber which encrypt/decrypt entities
@@ -239,56 +240,28 @@ class DoctrineEncryptSubscriber implements EventSubscriber {
                     $this->handleEmbeddedAnnotation($entity, $refProperty, $isEncryptOperation);
                     continue;
                 }
-                /**
-                 * If followed standards, method name is getPropertyName, the propertyName is lowerCamelCase
-                 * So just uppercase first character of the property, later on get and set{$methodName} wil be used
-                 */
-                $methodName = ucfirst($refProperty->getName());
-
 
                 /**
                  * If property is an normal value and contains the Encrypt tag, lets encrypt/decrypt that property
                  */
                 if ($this->annReader->getPropertyAnnotation($refProperty, self::ENCRYPTED_ANN_NAME)) {
 
-
-                    /**
-                     * If it is public lets not use the getter/setter
-                     */
-                    if ($refProperty->isPublic()) {
-                        $propName = $refProperty->getName();
-                        $entity->$propName = $this->encryptor->$encryptorMethod($refProperty->getValue());
-                    } else {
-                        //If private or protected check if there is an getter/setter for the property, based on the $methodName
-                        if ($reflectionClass->hasMethod($getter = 'get' . $methodName) && $reflectionClass->hasMethod($setter = 'set' . $methodName)) {
-
-                            //Get the information (value) of the property
-                            try {
-                                $getInformation = $entity->$getter();
-                            } catch(\Exception $e) {
-                                $getInformation = null;
+                    $pac = PropertyAccess::createPropertyAccessor();
+                    $value = $pac->getValue($entity, $refProperty->getName());
+                    if($encryptorMethod == "decrypt") {
+                        if(!is_null($value) and !empty($value)) {
+                            if(substr($value, -5) == "<ENC>") {
+                                $this->decryptCounter++;
+                                $currentPropValue = $this->encryptor->decrypt(substr($value, 0, -5));
+                                $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
                             }
-
-                            /**
-                             * Then decrypt, encrypt the information if not empty, information is an string and the <ENC> tag is there (decrypt) or not (encrypt).
-                             * The <ENC> will be added at the end of an encrypted string so it is marked as encrypted. Also protects against double encryption/decryption
-                             */
-                            if($encryptorMethod == "decrypt") {
-                                if(!is_null($getInformation) and !empty($getInformation)) {
-                                    if(substr($getInformation, -5) == "<ENC>") {
-                                        $this->decryptCounter++;
-                                        $currentPropValue = $this->encryptor->decrypt(substr($getInformation, 0, -5));
-                                        $entity->$setter($currentPropValue);
-                                    }
-                                }
-                            } else {
-                                if(!is_null($getInformation) and !empty($getInformation)) {
-                                    if(substr($entity->$getter(), -5) != "<ENC>") {
-                                        $this->encryptCounter++;
-                                        $currentPropValue = $this->encryptor->encrypt($entity->$getter());
-                                        $entity->$setter($currentPropValue);
-                                    }
-                                }
+                        }
+                    } else {
+                        if(!is_null($value) and !empty($value)) {
+                            if(substr($value, -5) != "<ENC>") {
+                                $this->encryptCounter++;
+                                $currentPropValue = $this->encryptor->encrypt($value);
+                                $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
                             }
                         }
                     }
@@ -305,21 +278,11 @@ class DoctrineEncryptSubscriber implements EventSubscriber {
     {
         $reflectionClass = new ReflectionClass($entity);
         $propName = $embeddedProperty->getName();
-        $methodName = ucfirst($propName);
 
-        if ($embeddedProperty->isPublic()) {
-            $embeddedEntity = $embeddedProperty->getValue();
-        } else {
-            if ($reflectionClass->hasMethod($getter = 'get' . $methodName) && $reflectionClass->hasMethod($setter = 'set' . $methodName)) {
+        $pac = PropertyAccess::createPropertyAccessor();
 
-                //Get the information (value) of the property
-                try {
-                    $embeddedEntity = $entity->$getter();
-                } catch(\Exception $e) {
-                    $embeddedEntity = null;
-                }
-            }
-        }
+        $embeddedEntity = $pac->getValue($entity, $propName);
+
         if ($embeddedEntity) {
             $this->processFields($embeddedEntity, $isEncryptOperation);
         }
