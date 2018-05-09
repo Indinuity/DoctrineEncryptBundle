@@ -14,7 +14,9 @@
         "phpunit/phpunit": "^6.5"
     },
     "suggest":{
-        "defuse/php-encryption": "Alternative for halite for use with older php-versions"
+        "defuse/php-encryption": "Alternative for halite for use with older php-versions",
+        "paragonie/halite": "For use with Halite",
+        "paragonie/sodium_compat": "For use with Halite"
     },
     "autoload": {
         "psr-0": { "Ambta\\DoctrineEncryptBundle": "" }
@@ -24,6 +26,10 @@
         {
             "name": "Michael de Groot",
             "email": "specamps@gmail.com"
+        },
+        {
+            "name": "Andreas Linden",
+            "email": "zlx@gmx.de"
         }
     ]
 }

@@ -9,26 +9,24 @@ ambta/DoctrineEncryptBundle is **not** secured, It uses old crypto functions and
 
 ### Using [Halite](https://github.com/paragonie/halite)
 
-*All deps are already installed with this package*
-
 ```yml
 // Config.yml
 ambta_doctrine_encrypt:
     encryptor_class: Halite
 ```
 
+`composer require paragonie/halite` \
+`composer require paragonie/sodium_compat`
+
 ### Using [Defuse](https://github.com/defuse/php-encryption)
 
-*You will need to require Defuse yourself*
-
-`composer require "defuse/php-encryption ^2.0"`
+`composer require defuse/php-encryption`
 
 ```yml
 // Config.yml
 ambta_doctrine_encrypt:
     encryptor_class: Defuse
 ```
-
 
 
 ### Secret key
