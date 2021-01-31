@@ -1,35 +1,42 @@
 {
-    "name": "michaeldegroot/doctrine-encrypt-bundle",
-    "type": "library",
-    "keywords": ["doctrine", "symfony", "halite", "defuse", "encrypt", "decrypt"],
-    "license": "MIT",
-    "description": "Encrypted symfony entity's by verified and standardized libraries",
-    "require": {
-        "php": ">=7.0",
-        "paragonie/halite": "^4.3",
-        "paragonie/sodium_compat": "^1.5",
-        "doctrine/orm": "^2.5"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^6.5"
-    },
-    "suggest":{
-        "defuse/php-encryption": "Alternative for halite for use with older php-versions",
-        "paragonie/halite": "For use with Halite",
-        "paragonie/sodium_compat": "For use with Halite"
-    },
-    "autoload": {
-        "psr-0": { "Ambta\\DoctrineEncryptBundle": "" }
-    },
-    "target-dir": "Ambta/DoctrineEncryptBundle",
-    "authors": [
-        {
-            "name": "Michael de Groot",
-            "email": "specamps@gmail.com"
-        },
-        {
-            "name": "Andreas Linden",
-            "email": "zlx@gmx.de"
-        }
-    ]
+	"name" : "michaeldegroot/doctrine-encrypt-bundle",
+	"type" : "library",
+	"keywords" : [
+		"doctrine",
+		"symfony",
+		"halite",
+		"defuse",
+		"encrypt",
+		"decrypt"
+	],
+	"license" : "MIT",
+	"description" : "Encrypted symfony entity's by verified and standardized libraries",
+	"require" : {
+		"php" : ">=7.0",
+		"paragonie/halite" : "4.6.*",
+		"paragonie/sodium_compat" : "^1.5",
+		"doctrine/orm" : "^2.5"
+	},
+	"require-dev" : {
+		"phpunit/phpunit" : "^6.5"
+	},
+	"suggest" : {
+		"defuse/php-encryption" : "Alternative for halite for use with older php-versions",
+		"paragonie/halite" : "For use with Halite",
+		"paragonie/sodium_compat" : "For use with Halite"
+	},
+	"autoload" : {
+		"psr-0" : {
+			"Ambta\\DoctrineEncryptBundle" : ""
+		}
+	},
+	"target-dir" : "Ambta/DoctrineEncryptBundle",
+	"authors" : [{
+			"name" : "Michael de Groot",
+			"email" : "specamps@gmail.com"
+		}, {
+			"name" : "Andreas Linden",
+			"email" : "zlx@gmx.de"
+		}
+	]
 }
