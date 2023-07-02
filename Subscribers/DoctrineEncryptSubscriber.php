@@ -9,9 +9,11 @@ use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Event\PreFlushEventArgs;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\ClassUtils;
 use Ambta\DoctrineEncryptBundle\Encryptors\EncryptorInterface;
+use ReflectionProperty;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 
 /**
@@ -33,11 +35,6 @@ class DoctrineEncryptSubscriber implements EventSubscriber
      * Encrypted annotation full name
      */
     const ENCRYPTED_ANN_NAME = 'Ambta\DoctrineEncryptBundle\Configuration\Encrypted';
-
-    /**
-     * @var array
-     */
-    const CRYPTMAP_PROP = '__crypt_map';
 
     /**
      * Encryptor
@@ -69,14 +66,14 @@ class DoctrineEncryptSubscriber implements EventSubscriber
      */
     public $encryptCounter = 0;
 
+    /** @var array */
+    private $cachedDecryptions = [];
+
     /**
      * Initialization of subscriber
      *
      * @param Reader $annReader
-     * @param string $encryptorClass  The encryptor class.  This can be empty if a service is being provided.
-     * @param EncryptorInterface|NULL $service (Optional)  An EncryptorInterface.
-     *
-     * This allows for the use of dependency injection for the encrypters.
+     * @param EncryptorInterface|NULL $encryptor (Optional)  An EncryptorInterface.
      */
     public function __construct(Reader $annReader, EncryptorInterface $encryptor)
     {
@@ -87,18 +84,18 @@ class DoctrineEncryptSubscriber implements EventSubscriber
 
     /**
      * Change the encryptor
-     * @param [type] $[name] [<description>]
-     * @param EncryptorInterface $encryptorClass
+     *
+     * @param EncryptorInterface $encryptor
      */
-    public function setEncryptor(EncryptorInterface $encryptorClass = null)
+    public function setEncryptor(EncryptorInterface $encryptor = null)
     {
-        $this->encryptor = $encryptorClass;
+        $this->encryptor = $encryptor;
     }
 
     /**
      * Get the current encryptor
      *
-     * @return Object returns the encryptor class or null
+     * @return EncryptorInterface returns the encryptor class or null
      */
     public function getEncryptor()
     {
@@ -106,7 +103,7 @@ class DoctrineEncryptSubscriber implements EventSubscriber
     }
 
     /**
-     * Restore encryptor set in config
+     * Restore encryptor to the one set in the constructor.
      */
     public function restoreEncryptor()
     {
@@ -153,22 +150,46 @@ class DoctrineEncryptSubscriber implements EventSubscriber
     }
 
     /**
-     * Listen to preflush event
+     * Listen to onflush event
      * Encrypt entities that are inserted into the database
      *
      * @param PreFlushEventArgs $preFlushEventArgs
      */
     public function preFlush(PreFlushEventArgs $preFlushEventArgs)
     {
-        $unitOfWork = $preFlushEventArgs->getEntityManager()->getUnitOfWork();
+        $unitOfWOrk = $preFlushEventArgs->getEntityManager()->getUnitOfWork();
+        foreach ($unitOfWOrk->getIdentityMap() as $entityName => $entityArray) {
+            if (isset($this->cachedDecryptions[$entityName])) {
+                foreach ($entityArray as $entityId => $instance) {
+                    $this->processFields($instance);
+                }
+            }
+        }
+        $this->cachedDecryptions = [];
+    }
+
+    /**
+     * Listen to onflush event
+     * Encrypt entities that are inserted into the database
+     *
+     * @param OnFlushEventArgs $onFlushEventArgs
+     */
+    public function onFlush(OnFlushEventArgs $onFlushEventArgs)
+    {
+        $unitOfWork = $onFlushEventArgs->getEntityManager()->getUnitOfWork();
         foreach ($unitOfWork->getScheduledEntityInsertions() as $entity) {
+            $encryptCounterBefore = $this->encryptCounter;
             $this->processFields($entity);
+            if ($this->encryptCounter > $encryptCounterBefore ) {
+                $classMetadata = $onFlushEventArgs->getEntityManager()->getClassMetadata(get_class($entity));
+                $unitOfWork->recomputeSingleEntityChangeSet($classMetadata, $entity);
+            }
         }
     }
 
     /**
      * Listen to postFlush event
-     * Decrypt entities that after inserted into the database
+     * Decrypt entities after having been inserted into the database
      *
      * @param PostFlushEventArgs $postFlushEventArgs
      */
@@ -193,6 +214,7 @@ class DoctrineEncryptSubscriber implements EventSubscriber
             Events::postUpdate,
             Events::preUpdate,
             Events::postLoad,
+            Events::onFlush,
             Events::preFlush,
             Events::postFlush,
         );
@@ -210,7 +232,6 @@ class DoctrineEncryptSubscriber implements EventSubscriber
      */
     public function processFields($entity, $isEncryptOperation = true)
     {
-
         if (!empty($this->encryptor)) {
             // Check which operation to be used
             $encryptorMethod = $isEncryptOperation ? 'encrypt' : 'decrypt';
@@ -222,10 +243,7 @@ class DoctrineEncryptSubscriber implements EventSubscriber
                 $realClass = get_class($entity);
             }
 
-            if (!isset($entity->{self::CRYPTMAP_PROP})) {
-                $entity->{self::CRYPTMAP_PROP} = [];
-            }
-
+            // Get ReflectionClass of our entity
             $properties = $this->getClassProperties($realClass);
 
             // Foreach property in the reflection class
@@ -240,32 +258,24 @@ class DoctrineEncryptSubscriber implements EventSubscriber
                  */
                 if ($this->annReader->getPropertyAnnotation($refProperty, self::ENCRYPTED_ANN_NAME)) {
                     $pac = PropertyAccess::createPropertyAccessor();
-                    $currentPropName = $refProperty->getName();
-                    $value = $pac->getValue($entity, $currentPropName);
+                    $value = $pac->getValue($entity, $refProperty->getName());
                     if ($encryptorMethod == 'decrypt') {
                         if (!is_null($value) and !empty($value)) {
                             if (substr($value, -strlen(self::ENCRYPTION_MARKER)) == self::ENCRYPTION_MARKER) {
-                                if (isset($entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$value])) {
-                                    $pac->setValue($entity, $currentPropName, $entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$value]);
-                                } else {
-                                    $this->decryptCounter++;
-                                    $currentPropValue = $this->encryptor->decrypt(substr($value, 0, -5));
-                                    $pac->setValue($entity, $currentPropName, $currentPropValue);
-                                    $entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$currentPropValue] = $value;
-                                }
+                                $this->decryptCounter++;
+                                $currentPropValue = $this->encryptor->decrypt(substr($value, 0, -5));
+                                $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
+                                $this->cachedDecryptions[get_class($entity)][spl_object_id($entity)][$refProperty->getName()][$currentPropValue] = $value;
                             }
                         }
                     } else {
                         if (!is_null($value) and !empty($value)) {
-                            if (substr($value, -strlen(self::ENCRYPTION_MARKER)) != self::ENCRYPTION_MARKER) {
-                                if (isset($entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$value])) {
-                                    $pac->setValue($entity, $currentPropName, $entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$value]);
-                                } else {
-                                    $this->encryptCounter++;
-                                    $currentPropValue = $this->encryptor->encrypt($value) . self::ENCRYPTION_MARKER;
-                                    $pac->setValue($entity, $currentPropName, $currentPropValue);
-                                    $entity->{self::CRYPTMAP_PROP}[$currentPropName.'#'.$currentPropValue] = $value;
-                                }
+                            if (isset($this->cachedDecryptions[get_class($entity)][spl_object_id($entity)][$refProperty->getName()][$value])) {
+                                $pac->setValue($entity, $refProperty->getName(), $this->cachedDecryptions[get_class($entity)][spl_object_id($entity)][$refProperty->getName()][$value]);
+                            } elseif (substr($value, -strlen(self::ENCRYPTION_MARKER)) != self::ENCRYPTION_MARKER) {
+                                $this->encryptCounter++;
+                                $currentPropValue = $this->encryptor->encrypt($value).self::ENCRYPTION_MARKER;
+                                $pac->setValue($entity, $refProperty->getName(), $currentPropValue);
                             }
                         }
                     }
@@ -278,10 +288,12 @@ class DoctrineEncryptSubscriber implements EventSubscriber
         return $entity;
     }
 
-    private function handleEmbeddedAnnotation($entity, $embeddedProperty, $isEncryptOperation = true)
+    private function handleEmbeddedAnnotation($entity, ReflectionProperty $embeddedProperty, bool $isEncryptOperation = true)
     {
         $propName = $embeddedProperty->getName();
+
         $pac = PropertyAccess::createPropertyAccessor();
+
         $embeddedEntity = $pac->getValue($entity, $propName);
 
         if ($embeddedEntity) {
